@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Repaso BI · Alumno</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<style>
+:root{
+  --navy:#0f0f2d;--card:#1e1e4a;--purple:#6c3fc5;--pink:#e040a0;
+  --cyan:#00d4ff;--yellow:#ffe14d;--green:#00e676;--red:#ff5252;--orange:#ff9800;--text:#f0f0ff;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Nunito',sans-serif;background:var(--navy);color:var(--text);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;
+  background-image:radial-gradient(ellipse at 20% 80%,#1a0a3a,transparent 50%),
+    radial-gradient(ellipse at 80% 10%,#0a1a3a,transparent 50%)}
+
+.screen{display:none;flex-direction:column;align-items:center;justify-content:center;
+  width:100%;max-width:480px;gap:20px;text-align:center;height:100%;padding:8px}
+.screen.active{display:flex}
+
+/* JOIN */
+.join-logo{font-family:'Baloo 2',sans-serif;font-size:clamp(1.8rem,8vw,2.8rem);font-weight:800;
+  background:linear-gradient(135deg,var(--cyan),var(--purple),var(--pink));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
+.join-sub{color:#8080bb;font-size:0.9rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+.join-card{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:20px;
+  padding:28px;width:100%;display:flex;flex-direction:column;gap:16px}
+.field{display:flex;flex-direction:column;gap:6px;text-align:left}
+.field label{font-size:0.78rem;font-weight:800;color:#8080aa;letter-spacing:1px;text-transform:uppercase}
+.field input{background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.15);
+  border-radius:10px;padding:14px 16px;color:var(--text);font-family:'Nunito',sans-serif;
+  font-size:1rem;font-weight:700;outline:none;transition:border-color 0.2s;width:100%}
+.field input:focus{border-color:var(--purple)}
+.field input::placeholder{color:#50508080;font-weight:400}
+.btn-join{font-family:'Baloo 2',sans-serif;font-size:1.2rem;font-weight:700;
+  background:linear-gradient(135deg,var(--purple),var(--pink));color:white;border:none;
+  border-radius:14px;padding:16px;cursor:pointer;box-shadow:0 6px 24px rgba(108,63,197,0.4);
+  width:100%;transition:transform 0.15s,opacity 0.15s}
+.btn-join:active{transform:scale(0.97)}
+.btn-join:disabled{opacity:0.5}
+
+/* WAITING */
+.wait-emoji{font-size:4rem;animation:bounce 1.5s infinite alternate}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+.wait-title{font-family:'Baloo 2',sans-serif;font-size:1.8rem;font-weight:800;color:var(--cyan)}
+.wait-name{font-size:1rem;color:#8080bb;font-weight:700}
+.wait-room{background:var(--card);border-radius:14px;padding:12px 24px;border:1px solid rgba(255,255,255,0.1)}
+.wait-room span{display:block;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#7070aa;margin-bottom:4px}
+.wait-room strong{font-family:'Baloo 2',sans-serif;font-size:1.8rem;color:var(--yellow);letter-spacing:3px}
+.pulse-dot{width:12px;height:12px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 8px var(--green);animation:pulse-d 1s infinite alternate;display:inline-block;margin-right:8px}
+@keyframes pulse-d{from{opacity:1;transform:scale(1)}to{opacity:0.4;transform:scale(0.8)}}
+
+/* QUESTION */
+#q-screen{justify-content:flex-start;padding:0;gap:0;overflow:hidden}
+.q-top{width:100%;background:rgba(20,20,60,0.95);padding:10px 16px;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+  border-bottom:1px solid rgba(255,255,255,0.07)}
+.q-badge{font-size:0.68rem;font-weight:800;letter-spacing:1.5px;padding:3px 10px;border-radius:50px;text-transform:uppercase}
+.badge-vf{background:rgba(0,214,255,0.15);color:var(--cyan);border:1px solid var(--cyan)}
+.badge-mc{background:rgba(224,64,160,0.15);color:var(--pink);border:1px solid var(--pink)}
+.badge-match{background:rgba(0,230,118,0.15);color:var(--green);border:1px solid var(--green)}
+
+.q-timer{font-family:'Baloo 2',sans-serif;font-size:1.5rem;font-weight:800;color:var(--cyan)}
+.q-timer.urgent{color:var(--red);animation:pulse-red 0.5s infinite alternate}
+@keyframes pulse-red{from{filter:none}to{filter:drop-shadow(0 0 8px #ff5252)}}
+.prog-bar{width:100%;height:4px;background:rgba(255,255,255,0.07);flex-shrink:0}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));transition:width 1s linear}
+
+.q-scroll{flex:1;overflow-y:auto;padding:14px 14px;display:flex;flex-direction:column;gap:14px;
+  align-items:center;-webkit-overflow-scrolling:touch}
+
+.q-text-s{font-size:clamp(0.9rem,3.5vw,1.1rem);font-weight:700;text-align:center;line-height:1.5;
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;padding:14px 16px;width:100%;max-width:440px}
+
+/* Options */
+.opts-s{display:flex;flex-direction:column;gap:10px;width:100%;max-width:440px}
+.opt-btn-s{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:12px;
+  border:2px solid transparent;cursor:pointer;font-family:'Nunito',sans-serif;
+  font-size:clamp(0.82rem,3vw,1rem);font-weight:700;color:white;text-align:left;line-height:1.3;
+  transition:transform 0.12s,box-shadow 0.12s;width:100%}
+.opt-btn-s:active{transform:scale(0.97)}
+.os-A{background:linear-gradient(135deg,#1a0a5e,#2d1a7a);border-color:#6c3fc5}
+.os-B{background:linear-gradient(135deg,#1a0a3a,#3a1050);border-color:#e040a0}
+.os-C{background:linear-gradient(135deg,#0a1a2a,#0a3040);border-color:#00d4ff}
+.os-D{background:linear-gradient(135deg,#1a1a0a,#3a2a00);border-color:#ffe14d}
+.opt-letter-s{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:0.9rem;font-weight:900;flex-shrink:0;font-family:'Baloo 2',sans-serif}
+.os-A .opt-letter-s{background:#6c3fc5}
+.os-B .opt-letter-s{background:#e040a0}
+.os-C .opt-letter-s{background:#00d4ff;color:#000}
+.os-D .opt-letter-s{background:#ffe14d;color:#000}
+.opt-btn-s.selected-opt{border-width:3px;box-shadow:0 0 20px rgba(255,255,255,0.2)}
+.opt-btn-s.correct-opt{background:linear-gradient(135deg,#003d1a,#006b2e)!important;border-color:var(--green)!important}
+.opt-btn-s.wrong-opt{background:linear-gradient(135deg,#3d0000,#6b0000)!important;border-color:var(--red)!important;opacity:0.7}
+.opt-btn-s.disabled-opt{pointer-events:none}
+
+/* Matching */
+.match-cols{display:flex;gap:10px;width:100%;max-width:440px}
+.match-col-s{display:flex;flex-direction:column;gap:7px;flex:1}
+.mc-title{font-size:0.65rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+  color:#7070aa;text-align:center;margin-bottom:3px}
+.match-item-s{padding:9px 11px;border-radius:10px;font-size:clamp(0.72rem,2.8vw,0.85rem);
+  font-weight:700;text-align:center;cursor:pointer;border:2px solid transparent;
+  line-height:1.25;transition:transform 0.12s,border-color 0.15s}
+.match-item-s:active{transform:scale(0.95)}
+.ml{background:linear-gradient(135deg,#1a0a5e,#2d1a7a);border-color:rgba(108,63,197,0.4);color:#d0d0ff}
+.mr{background:linear-gradient(135deg,#0a1a3a,#0a2a50);border-color:rgba(0,212,255,0.3);color:#c0e8ff}
+.ml.sel{border-color:var(--yellow)!important;color:var(--yellow);box-shadow:0 0 12px rgba(255,225,77,0.4)}
+.match-item-s.m-correct{background:linear-gradient(135deg,#003d1a,#005a28)!important;border-color:var(--green)!important;color:var(--green)!important;pointer-events:none}
+.match-item-s.m-wrong{border-color:var(--red)!important;color:var(--red)!important}
+.match-score-s{font-size:0.85rem;font-weight:700;color:#a0a0cc;text-align:center}
+
+/* Answered state */
+.answered-box{background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:440px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;border:2px solid transparent}
+.answered-box.correct-b{border-color:var(--green)}
+.answered-box.wrong-b{border-color:var(--red)}
+.answered-icon{font-size:3rem}
+.answered-msg{font-family:'Baloo 2',sans-serif;font-size:1.4rem;font-weight:800}
+.correct-msg{color:var(--green)}
+.wrong-msg{color:var(--red)}
+.answered-pts{font-size:0.95rem;font-weight:700;color:#a0a0cc}
+.analysis-wait{font-size:0.9rem;color:#7070aa;font-weight:600;margin-top:4px}
+
+/* Analysis phase */
+.analysis-box-s{background:rgba(255,225,77,0.08);border:1.5px solid var(--yellow);
+  border-radius:14px;padding:14px 20px;width:100%;max-width:440px;text-align:center}
+.analysis-label-s{font-family:'Baloo 2',sans-serif;font-size:1rem;color:var(--yellow);font-weight:800;margin-bottom:6px}
+.analysis-hint-s{font-size:0.85rem;color:#a0a080;font-weight:600}
+
+/* Waiting next */
+.wait-next{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px}
+.score-pill{background:var(--card);border:1px solid rgba(255,255,255,0.1);
+  border-radius:50px;padding:8px 20px;font-family:'Baloo 2',sans-serif;font-size:1.2rem;color:var(--cyan)}
+
+/* Final */
+.final-big{font-size:4rem;animation:bounce 1s infinite alternate}
+.final-score{font-family:'Baloo 2',sans-serif;font-size:3rem;font-weight:800;color:var(--cyan)}
+.final-label{color:#8080bb;font-size:0.85rem;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.final-rank{font-family:'Baloo 2',sans-serif;font-size:1.5rem;font-weight:800;color:var(--yellow)}
+</style>
+</head>
+<body>
+
+<!-- JOIN -->
+<div class="screen active" id="join-screen">
+  <div class="join-logo">🎮 Repaso BI</div>
+  <div class="join-sub">Biología & Salud · 2026A</div>
+  <div class="join-card">
+    <div class="field">
+      <label>Código de sala</label>
+      <input type="text" id="inp-room" placeholder="Ej: BIO123" maxlength="10"
+        style="text-transform:uppercase;font-weight:800;font-size:1.2rem;letter-spacing:3px">
+    </div>
+    <div class="field">
+      <label>Tu nombre</label>
+      <input type="text" id="inp-name" placeholder="¿Cómo te llamas?" maxlength="20">
+    </div>
+    <button class="btn-join" id="btn-join" onclick="joinGame()">Entrar al juego 🚀</button>
+  </div>
+</div>
+
+<!-- WAITING FOR GAME -->
+<div class="screen" id="wait-screen">
+  <div class="wait-emoji">⏳</div>
+  <div class="wait-title">¡Ya estás dentro!</div>
+  <div class="wait-name" id="w-name">Hola, Estudiante</div>
+  <div class="wait-room">
+    <span>Sala</span>
+    <strong id="w-room">----</strong>
+  </div>
+  <div style="color:#a0a0cc;font-size:0.9rem;font-weight:600">
+    <span class="pulse-dot"></span>Esperando que la maestra inicie...
+  </div>
+</div>
+
+<!-- QUESTION -->
+<div class="screen" id="q-screen">
+  <div class="q-top">
+    <div class="q-badge" id="s-badge">V/F</div>
+    <div style="font-size:0.8rem;color:#8080bb;font-weight:700" id="s-qnum">1/20</div>
+    <div class="q-timer" id="s-timer">20</div>
+  </div>
+  <div class="prog-bar"><div class="prog-fill" id="s-prog" style="width:0%"></div></div>
+  <div class="q-scroll" id="q-scroll"></div>
+</div>
+
+<!-- FINAL -->
+<div class="screen" id="final-screen">
+  <div class="final-big">🏆</div>
+  <div style="font-family:'Baloo 2',sans-serif;font-size:1.8rem;font-weight:800;color:var(--yellow)">¡Juego terminado!</div>
+  <div class="final-score" id="f-score">0</div>
+  <div class="final-label">puntos</div>
+  <div class="final-rank" id="f-rank"></div>
+  <div style="color:#8080bb;font-size:0.85rem;font-weight:600;margin-top:8px">Ve el ranking completo en la pantalla del salón</div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCyjI5t4JLmluCII4_yXHKcXJnyTNoRhDw",
+  authDomain: "bienestar2026-b4679.firebaseapp.com",
+  databaseURL: "https://bienestar2026-b4679-default-rtdb.firebaseio.com",
+  projectId: "bienestar2026-b4679",
+  storageBucket: "bienestar2026-b4679.firebasestorage.app",
+  messagingSenderId: "524713674676",
+  appId: "1:524713674676:web:b7a2690effa094522654e1"
+};
+
+const AVATARS=['🦊','🐱','🐸','🦁','🐧','🦄','🐺','🦋','🐙','🌟','🎯','🚀','🌈','🎸','🍕'];
+const COLORS=['#6c3fc5','#e040a0','#00d4ff','#ffe14d','#00e676','#ff9800','#ff5252','#00bcd4','#9c27b0','#4caf50'];
+
+let db, roomRef, playerRef;
+let playerName='', roomCode='', playerId='';
+let myAvatar, myColor;
+let currentQ=null, myAnswer=null, answered=false;
+let timerInterval=null, timeLeft=0, totalTime=0;
+let myScore=0, myCorrect=0;
+let matchState=null;
+
+// Pre-fill room from URL
+const urlRoom=new URLSearchParams(window.location.search).get('room');
+if(urlRoom) document.getElementById('inp-room').value=urlRoom.toUpperCase();
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function joinGame(){
+  const room=document.getElementById('inp-room').value.trim().toUpperCase();
+  const name=document.getElementById('inp-name').value.trim();
+  if(!room){alert('Escribe el código de sala');return}
+  if(!name){alert('Escribe tu nombre');return}
+
+  roomCode=room; playerName=name;
+  playerId='p_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
+  myAvatar=AVATARS[Math.floor(Math.random()*AVATARS.length)];
+  myColor=COLORS[Math.floor(Math.random()*COLORS.length)];
+
+  document.getElementById('w-name').textContent='Hola, '+name+' '+myAvatar;
+  document.getElementById('w-room').textContent=room;
+  showScreen('wait-screen');
+
+  try{
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    db=firebase.database();
+    roomRef=db.ref('rooms/'+room);
+    playerRef=roomRef.child('players/'+playerId);
+    playerRef.set({name,avatar:myAvatar,color:myColor,score:0});
+    playerRef.onDisconnect().remove();
+    listenToGame();
+  }catch(e){
+    // Offline demo mode - just wait
+    setTimeout(()=>enterDemoMode(),2000);
+  }
+}
+
+function enterDemoMode(){
+  // Demo: simulate receiving a question
+  const demoQ={type:'mc',time:25,badge:'V/F',
+    question:'¿Es verdadera o falsa esta afirmación?\n"Los determinantes sociales de la salud incluyen educación y empleo."',
+    options:['✅ Verdadero — las condiciones sociales afectan la calidad de vida.',
+             '❌ Falso — solo el ambiente natural influye en la salud.',
+             '❌ Falso — solo los genes determinan la salud.',
+             '❌ Verdadero — pero solo por decisiones individuales.'],correct:0};
+  renderStudentQuestion(demoQ, 0, 20);
+}
+
+function listenToGame(){
+  roomRef.child('currentQ').on('value',snap=>{
+    const qIdx=snap.val();
+    if(qIdx===null||qIdx===-1) return;
+    // Get question data
+    roomRef.child('questionData').once('value',qSnap=>{
+      const q=qSnap.val();
+      if(!q) return;
+      renderStudentQuestion(q, qIdx, q.time||25);
+    });
+  });
+
+  roomRef.child('phase').on('value',snap=>{
+    const phase=snap.val();
+    if(phase==='analysis') showAnalysisPhase();
+    if(phase==='done') showFinalStudent();
+  });
+}
+
+function renderStudentQuestion(q, qIdx, seconds){
+  answered=false; myAnswer=null; currentQ=q;
+  showScreen('q-screen');
+  timeLeft=seconds; totalTime=seconds;
+
+  const badge=document.getElementById('s-badge');
+  if(q.type==='match'){badge.textContent='Relacionar';badge.className='q-badge badge-match'}
+  else if(q.badge==='V/F'){badge.textContent='V / F';badge.className='q-badge badge-vf'}
+  else{badge.textContent='Análisis';badge.className='q-badge badge-mc'}
+
+  document.getElementById('s-qnum').textContent=(qIdx+1)+'/'+20;
+
+  const scroll=document.getElementById('q-scroll');
+  scroll.innerHTML='';
+
+  if(q.type==='mc') renderMCStudent(q,scroll);
+  else renderMatchStudent(q,scroll);
+
+  startStudentTimer(seconds);
+}
+
+function startStudentTimer(seconds){
+  clearInterval(timerInterval);
+  timeLeft=seconds; totalTime=seconds;
+  const el=document.getElementById('s-timer');
+  const prog=document.getElementById('s-prog');
+  el.classList.remove('urgent');
+
+  function tick(){
+    el.textContent=timeLeft;
+    prog.style.width=(timeLeft/totalTime*100)+'%';
+    if(timeLeft<=5) el.classList.add('urgent');
+    if(timeLeft<=0){clearInterval(timerInterval);if(!answered) submitAnswer(null,false);}
+    timeLeft--;
+  }
+  tick();
+  timerInterval=setInterval(tick,1000);
+}
+
+function renderMCStudent(q,scroll){
+  const qt=document.createElement('div');
+  qt.className='q-text-s';
+  qt.innerHTML=q.question.replace(/\n/g,'<br>');
+  scroll.appendChild(qt);
+
+  const opts=document.createElement('div');
+  opts.className='opts-s';
+  const letters=['A','B','C','D'];
+  const cls=['os-A','os-B','os-C','os-D'];
+
+  q.options.forEach((opt,i)=>{
+    const btn=document.createElement('button');
+    btn.className=`opt-btn-s ${cls[i]}`;
+    btn.innerHTML=`<span class="opt-letter-s">${letters[i]}</span><span>${opt}</span>`;
+    btn.onclick=()=>selectMCStudent(i,q.correct,opts,btn);
+    opts.appendChild(btn);
+  });
+  scroll.appendChild(opts);
+}
+
+function selectMCStudent(i,correct,opts,btn){
+  if(answered) return;
+  answered=true; myAnswer=i;
+  clearInterval(timerInterval);
+
+  const isCorrect=(i===correct);
+  const btns=opts.querySelectorAll('.opt-btn-s');
+  btns.forEach((b,bi)=>{
+    b.classList.add('disabled-opt');
+    if(bi===correct) b.classList.add('correct-opt');
+    else if(bi===i&&!isCorrect) b.classList.add('wrong-opt');
+  });
+
+  submitAnswer(i, isCorrect);
+  showAnsweredFeedback(isCorrect);
+}
+
+function renderMatchStudent(q,scroll){
+  const qt=document.createElement('div');
+  qt.className='q-text-s';
+  qt.textContent=q.instruction;
+  scroll.appendChild(qt);
+
+  const pairs=q.pairs;
+  function shuf(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]]}return r}
+  const sl=shuf(pairs.map((p,i)=>({...p,idx:i})));
+  const sr=shuf(pairs.map((p,i)=>({...p,idx:i})));
+
+  matchState={selected:null,matched:new Set(),total:pairs.length,correct:0};
+
+  const cols=document.createElement('div');cols.className='match-cols';
+  const lc=document.createElement('div');lc.className='match-col-s';
+  const rc=document.createElement('div');rc.className='match-col-s';
+  const lt=document.createElement('div');lt.className='mc-title';lt.textContent='Concepto';
+  const rt=document.createElement('div');rt.className='mc-title';rt.textContent='Definición';
+  lc.appendChild(lt);rc.appendChild(rt);
+
+  sl.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='match-item-s ml';el.textContent=p.left;el.dataset.idx=p.idx;
+    el.onclick=()=>selLeft(el,cols);lc.appendChild(el);
+  });
+  sr.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='match-item-s mr';el.textContent=p.right;el.dataset.idx=p.idx;
+    el.onclick=()=>selRight(el,cols);rc.appendChild(el);
+  });
+  cols.appendChild(lc);cols.appendChild(rc);
+  scroll.appendChild(cols);
+
+  const sc=document.createElement('div');sc.className='match-score-s';sc.id='match-sc';
+  sc.textContent=`0 / ${pairs.length} pares`;
+  scroll.appendChild(sc);
+}
+
+function selLeft(el,cols){
+  if(answered||el.classList.contains('m-correct')) return;
+  cols.querySelectorAll('.ml.sel').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
+  matchState.selected=el;
+}
+
+function selRight(el,cols){
+  if(answered||!matchState.selected||el.classList.contains('m-correct')) return;
+  const lEl=matchState.selected;
+  const li=parseInt(lEl.dataset.idx);
+  const ri=parseInt(el.dataset.idx);
+  lEl.classList.remove('sel');
+  matchState.selected=null;
+
+  if(li===ri){
+    lEl.classList.add('m-correct');el.classList.add('m-correct');
+    matchState.correct++;
+    const sc=document.getElementById('match-sc');
+    if(sc) sc.textContent=`${matchState.correct} / ${matchState.total} pares`;
+    if(matchState.correct===matchState.total){
+      answered=true;clearInterval(timerInterval);
+      submitAnswer('all_correct',true);
+      showAnsweredFeedback(true);
+    }
+  }else{
+    lEl.classList.add('m-wrong');el.classList.add('m-wrong');
+    setTimeout(()=>{lEl.classList.remove('m-wrong');el.classList.remove('m-wrong');},600);
+  }
+}
+
+function submitAnswer(answer, isCorrect){
+  if(isCorrect){
+    const bonus=Math.max(0,Math.round(timeLeft/totalTime*500));
+    myScore+=(500+bonus); myCorrect++;
+  }
+  if(db&&roomRef){
+    roomRef.child('responses/q'+(document.getElementById('s-qnum').textContent.split('/')[0]-1)+'/'+playerId)
+      .set({answer,correct:isCorrect,timeLeft,timestamp:firebase.database.ServerValue.TIMESTAMP});
+    playerRef.update({score:myScore});
+  }
+}
+
+function showAnsweredFeedback(isCorrect){
+  const scroll=document.getElementById('q-scroll');
+  const box=document.createElement('div');
+  box.className=`answered-box ${isCorrect?'correct-b':'wrong-b'}`;
+  box.innerHTML=`
+    <div class="answered-icon">${isCorrect?'✅':'❌'}</div>
+    <div class="answered-msg ${isCorrect?'correct-msg':'wrong-msg'}">${isCorrect?'¡Correcto!':'Incorrecto'}</div>
+    <div class="answered-pts">${isCorrect?'+500 pts + bono de velocidad ⚡':'Sin puntos esta vez'}</div>
+    <div class="analysis-wait">⏳ Espera el análisis de la respuesta...</div>`;
+  scroll.appendChild(box);
+  scroll.scrollTo({top:scroll.scrollHeight,behavior:'smooth'});
+}
+
+function showAnalysisPhase(){
+  const scroll=document.getElementById('q-scroll');
+  const old=document.getElementById('analysis-s-box');
+  if(old) return;
+  const box=document.createElement('div');
+  box.className='analysis-box-s';box.id='analysis-s-box';
+  box.innerHTML=`<div class="analysis-label-s">🔍 Tiempo de análisis</div>
+    <div class="analysis-hint-s">Revisa la respuesta correcta en la pantalla del salón y analícenla juntos</div>`;
+  scroll.appendChild(box);
+  scroll.scrollTo({top:scroll.scrollHeight,behavior:'smooth'});
+}
+
+function showFinalStudent(){
+  showScreen('final-screen');
+  document.getElementById('f-score').textContent=myScore.toLocaleString();
+  document.getElementById('f-rank').textContent=`✅ ${myCorrect} preguntas correctas`;
+}
+</script>
+</body>
+</html>
