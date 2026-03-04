@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vista Maestra · Repaso BI 2026A</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root {
+  --navy:#0f0f2d; --card:#1e1e4a; --purple:#6c3fc5; --pink:#e040a0;
+  --cyan:#00d4ff; --yellow:#ffe14d; --green:#00e676; --red:#ff5252;
+  --orange:#ff9800; --text:#f0f0ff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Nunito',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* BG */
+body::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(ellipse at 15% 50%,#1a0a3a,transparent 55%),
+  radial-gradient(ellipse at 85% 20%,#0a1a3a,transparent 55%);pointer-events:none;z-index:0}
+
+.wrap{position:relative;z-index:1}
+
+/* ===== SETUP SCREEN ===== */
+#setup{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:28px;padding:40px 20px}
+.logo{font-family:'Baloo 2',sans-serif;font-size:clamp(2rem,5vw,3.5rem);font-weight:800;
+  background:linear-gradient(135deg,var(--cyan),var(--purple),var(--pink));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;line-height:1.1}
+.sub{color:#8080bb;font-size:1rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-align:center}
+
+.config-card{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:32px;width:100%;max-width:500px;display:flex;flex-direction:column;gap:20px}
+.config-card h2{font-family:'Baloo 2',sans-serif;font-size:1.3rem;color:var(--cyan)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:0.85rem;font-weight:700;color:#a0a0cc;letter-spacing:1px;text-transform:uppercase}
+.field input,.field select{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
+  border-radius:10px;padding:12px 16px;color:var(--text);font-family:'Nunito',sans-serif;font-size:1rem;outline:none;
+  transition:border-color 0.2s}
+.field input:focus,.field select:focus{border-color:var(--purple)}
+.field input::placeholder{color:#5050880}
+
+.btn-primary{font-family:'Baloo 2',sans-serif;font-size:1.2rem;font-weight:700;
+  background:linear-gradient(135deg,var(--purple),var(--pink));color:white;border:none;border-radius:14px;
+  padding:16px;cursor:pointer;box-shadow:0 6px 24px rgba(108,63,197,0.4);transition:transform 0.15s,box-shadow 0.15s;width:100%}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(108,63,197,0.6)}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+
+/* ===== LOBBY WAITING ===== */
+#lobby{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:32px 20px;gap:24px}
+.lobby-top{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:1100px;flex-wrap:wrap;gap:16px}
+.room-badge{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:12px 24px;text-align:center}
+.room-badge span{display:block;font-size:0.75rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#7070aa;margin-bottom:4px}
+.room-badge strong{font-family:'Baloo 2',sans-serif;font-size:2rem;color:var(--yellow);letter-spacing:4px}
+
+.qr-box{background:white;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.qr-box p{color:#1a1a4e;font-weight:800;font-size:0.8rem;letter-spacing:1px;text-align:center}
+
+.players-section{width:100%;max-width:1100px}
+.section-title{font-family:'Baloo 2',sans-serif;font-size:1.1rem;color:#8080bb;margin-bottom:14px;
+  display:flex;align-items:center;gap:10px}
+.count-pill{background:var(--purple);color:white;border-radius:50px;padding:2px 12px;font-size:0.85rem}
+
+.players-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.player-chip{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:12px;
+  padding:10px 14px;font-weight:700;font-size:0.9rem;display:flex;align-items:center;gap:8px;
+  animation:popIn 0.3s ease}
+.player-chip .avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:0.8rem;font-weight:900;flex-shrink:0}
+@keyframes popIn{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}
+
+.start-btn-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.start-btn-wrap .hint{color:#7070aa;font-size:0.85rem;font-weight:600}
+#btn-start-game{width:280px;padding:18px}
+
+/* ===== GAME SCREEN ===== */
+#game{display:none;flex-direction:column;min-height:100vh}
+
+.top-bar{background:rgba(20,20,60,0.95);border-bottom:2px solid rgba(255,255,255,0.07);
+  padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0}
+.q-info{display:flex;align-items:center;gap:12px}
+.q-num{font-family:'Baloo 2',sans-serif;font-size:1rem;font-weight:700;color:#8080bb}
+.badge{font-size:0.7rem;font-weight:800;letter-spacing:1.5px;padding:4px 12px;border-radius:50px;text-transform:uppercase}
+.badge-vf{background:rgba(0,214,255,0.15);color:var(--cyan);border:1px solid var(--cyan)}
+.badge-mc{background:rgba(224,64,160,0.15);color:var(--pink);border:1px solid var(--pink)}
+.badge-match{background:rgba(0,230,118,0.15);color:var(--green);border:1px solid var(--green)}
+
+.responses-live{display:flex;align-items:center;gap:8px;font-size:0.95rem;font-weight:700}
+.resp-count{font-family:'Baloo 2',sans-serif;font-size:1.5rem;color:var(--cyan)}
+
+.timer-wrap{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.timer-circle{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'Baloo 2',sans-serif;font-size:1.5rem;font-weight:800;position:relative}
+.timer-circle svg{position:absolute;top:0;left:0;transform:rotate(-90deg)}
+.timer-num{position:relative;z-index:1}
+.timer-circle.urgent{color:var(--red);animation:pulse-red 0.5s infinite alternate}
+@keyframes pulse-red{from{filter:drop-shadow(0 0 4px #ff5252)}to{filter:drop-shadow(0 0 16px #ff5252)}}
+
+.prog-bar-wrap{width:100%;height:5px;background:rgba(255,255,255,0.07)}
+.prog-bar-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));transition:width 1s linear}
+
+.game-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 24px;gap:20px}
+
+.q-text-big{font-size:clamp(1.1rem,2.5vw,1.6rem);font-weight:700;text-align:center;line-height:1.5;
+  max-width:900px;color:#e8e8ff;background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px 32px}
+
+/* Options display (read-only for teacher) */
+.opts-display{display:grid;gap:12px;width:100%;max-width:900px;grid-template-columns:1fr 1fr}
+.opts-display.single-col{grid-template-columns:1fr}
+.opt-show{display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:12px;
+  font-size:clamp(0.85rem,1.6vw,1.05rem);font-weight:700;line-height:1.3;position:relative;overflow:hidden}
+.opt-show .opt-letter{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:1rem;font-weight:900;flex-shrink:0;font-family:'Baloo 2',sans-serif}
+.os-A{background:linear-gradient(135deg,#1a0a5e,#2d1a7a);border:2px solid #6c3fc5}
+.os-B{background:linear-gradient(135deg,#1a0a3a,#3a1050);border:2px solid #e040a0}
+.os-C{background:linear-gradient(135deg,#0a1a2a,#0a3040);border:2px solid #00d4ff}
+.os-D{background:linear-gradient(135deg,#1a1a0a,#3a2a00);border:2px solid #ffe14d}
+.os-A .opt-letter{background:#6c3fc5}
+.os-B .opt-letter{background:#e040a0}
+.os-C .opt-letter{background:#00d4ff;color:#000}
+.os-D .opt-letter{background:#ffe14d;color:#000}
+.opt-show.correct-show{background:linear-gradient(135deg,#003d1a,#006b2e)!important;border-color:var(--green)!important}
+.opt-show .bar-fill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,0.08);
+  transition:width 0.6s ease;z-index:0;border-radius:12px}
+.opt-show>*:not(.bar-fill){position:relative;z-index:1}
+.opt-votes{margin-left:auto;font-family:'Baloo 2',sans-serif;font-size:1.1rem;color:var(--yellow);flex-shrink:0}
+
+/* Match display */
+.match-display{display:flex;gap:20px;width:100%;max-width:900px;flex-wrap:wrap;justify-content:center}
+.match-col-d{display:flex;flex-direction:column;gap:8px;flex:1;min-width:200px}
+.match-col-title-d{font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;
+  color:#7070aa;margin-bottom:4px;text-align:center}
+.match-item-d{padding:10px 14px;border-radius:10px;font-size:clamp(0.8rem,1.4vw,0.9rem);
+  font-weight:700;text-align:center;line-height:1.25}
+.mid-left{background:linear-gradient(135deg,#1a0a5e,#2d1a7a);border:1.5px solid rgba(108,63,197,0.5);color:#d0d0ff}
+.mid-right{background:linear-gradient(135deg,#0a1a3a,#0a2a50);border:1.5px solid rgba(0,212,255,0.3);color:#c0e8ff}
+
+/* ===== ANALYSIS PHASE ===== */
+.analysis-banner{background:linear-gradient(135deg,rgba(255,225,77,0.1),rgba(255,152,0,0.1));
+  border:1.5px solid var(--yellow);border-radius:16px;padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;max-width:900px}
+.analysis-label{font-family:'Baloo 2',sans-serif;font-size:1.1rem;color:var(--yellow);font-weight:800}
+.analysis-timer{font-family:'Baloo 2',sans-serif;font-size:2rem;color:var(--orange);font-weight:800;min-width:40px;text-align:right}
+
+/* ===== PODIUM SCREEN ===== */
+#podium-screen{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:24px 20px;gap:20px}
+.podium-header{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:1000px;flex-wrap:wrap;gap:12px}
+.podium-title{font-family:'Baloo 2',sans-serif;font-size:1.8rem;font-weight:800;color:var(--yellow)}
+.podium-sub{color:#8080bb;font-size:0.9rem;font-weight:700}
+
+.podium-wrap{display:flex;align-items:flex-end;justify-content:center;gap:16px;width:100%;max-width:800px;flex-wrap:wrap}
+.podium-place{display:flex;flex-direction:column;align-items:center;gap:10px}
+.podium-avatar{font-size:2rem;border-radius:50%;width:64px;height:64px;display:flex;align-items:center;justify-content:center;border:3px solid transparent}
+.podium-name{font-weight:800;font-size:0.95rem;text-align:center;max-width:110px;word-break:break-word}
+.podium-score{font-family:'Baloo 2',sans-serif;font-size:1.3rem;color:var(--cyan)}
+.podium-block{border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:center;
+  font-family:'Baloo 2',sans-serif;font-size:2rem;font-weight:800;min-width:100px;transition:height 1s ease}
+.p1 .podium-avatar{border-color:gold;background:rgba(255,215,0,0.15);box-shadow:0 0 24px rgba(255,215,0,0.4)}
+.p1 .podium-block{background:linear-gradient(180deg,#b8860b,#8B6914);color:gold;height:140px}
+.p2 .podium-avatar{border-color:#c0c0c0;background:rgba(192,192,192,0.1)}
+.p2 .podium-block{background:linear-gradient(180deg,#707070,#505050);color:#ddd;height:100px}
+.p3 .podium-avatar{border-color:#cd7f32;background:rgba(205,127,50,0.1)}
+.p3 .podium-block{background:linear-gradient(180deg,#8B4513,#5C2E00);color:#cd7f32;height:80px}
+
+.leaderboard{width:100%;max-width:700px;display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto}
+.lb-row{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:12px;
+  padding:10px 16px;border:1px solid rgba(255,255,255,0.07)}
+.lb-rank{font-family:'Baloo 2',sans-serif;font-size:1.1rem;font-weight:800;width:28px;text-align:center;color:#8080bb}
+.lb-avatar{font-size:1.1rem}
+.lb-name{flex:1;font-weight:700;font-size:0.95rem}
+.lb-score{font-family:'Baloo 2',sans-serif;font-size:1.1rem;color:var(--cyan)}
+.lb-correct{font-size:0.8rem;color:#7070aa;font-weight:700}
+
+.btn-next-q{font-family:'Baloo 2',sans-serif;font-size:1.2rem;font-weight:700;
+  background:linear-gradient(135deg,var(--purple),var(--pink));color:white;border:none;border-radius:14px;
+  padding:16px 48px;cursor:pointer;box-shadow:0 6px 24px rgba(108,63,197,0.4);
+  transition:transform 0.15s,box-shadow 0.15s}
+.btn-next-q:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(108,63,197,0.6)}
+
+/* ===== FINAL ===== */
+#final{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:40px 20px;gap:24px;justify-content:center}
+.trophy{font-size:5rem;filter:drop-shadow(0 0 30px gold);animation:bounce 1s infinite alternate}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-14px)}}
+.final-title{font-family:'Baloo 2',sans-serif;font-size:clamp(2rem,5vw,3.2rem);font-weight:800;
+  background:linear-gradient(135deg,var(--yellow),var(--orange));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* confetti */
+.confetti-piece{position:fixed;width:10px;height:14px;border-radius:2px;top:-20px;
+  animation:fall linear forwards;z-index:100;pointer-events:none}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:0}}
+
+@media(max-width:600px){
+  .opts-display{grid-template-columns:1fr}
+  .podium-wrap{gap:8px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="logo">Repaso BI 2026A</div>
+  <div class="sub">Vista Maestra · Panel de Control</div>
+  <div class="config-card">
+    <h2>⚙️ Configurar sala</h2>
+    <div class="field">
+      <label>Código de sala (compártelo con tus alumnos)</label>
+      <input type="text" id="room-code-input" placeholder="Ej: BIO2026" maxlength="10" style="text-transform:uppercase;font-weight:800;font-size:1.2rem;letter-spacing:3px">
+    </div>
+    <div class="field">
+      <label>Tu nombre / alias</label>
+      <input type="text" id="teacher-name" placeholder="Profa. Yatzi" maxlength="20">
+    </div>
+    <button class="btn-primary" id="btn-create" onclick="createRoom()">Crear sala 🚀</button>
+  </div>
+</div>
+
+<!-- LOBBY WAITING -->
+<div id="lobby">
+  <div class="lobby-top">
+    <div>
+      <div class="logo" style="font-size:1.8rem">Sala de espera</div>
+      <div class="sub" style="margin-top:4px">Espera que se conecten tus alumnos</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+      <div class="room-badge">
+        <span>Código de sala</span>
+        <strong id="display-code">----</strong>
+      </div>
+      <div class="qr-box">
+        <div id="qr-code"></div>
+        <p>📱 Escanear para entrar</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="players-section">
+    <div class="section-title">
+      Alumnos conectados
+      <span class="count-pill" id="player-count">0</span>
+    </div>
+    <div class="players-grid" id="players-grid"></div>
+  </div>
+
+  <div class="start-btn-wrap">
+    <div class="hint" id="start-hint">Conecta al menos 1 alumno para comenzar</div>
+    <button class="btn-primary" id="btn-start-game" onclick="startGame()" disabled style="width:280px;padding:18px">
+      ▶ Comenzar juego
+    </button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <div class="top-bar">
+    <div class="q-info">
+      <div class="q-num" id="g-q-num">Pregunta 1/20</div>
+      <div class="badge" id="g-badge"></div>
+    </div>
+    <div class="responses-live">
+      <span class="resp-count" id="resp-count">0</span>
+      <span style="color:#7070aa;font-size:0.85rem;font-weight:700">/ <span id="total-players">0</span> respondieron</span>
+    </div>
+    <button id="btn-skip" onclick="skipQuestion()" style="font-family:'Baloo 2',sans-serif;font-size:0.85rem;font-weight:700;background:rgba(255,152,0,0.15);color:#ff9800;border:1.5px solid #ff9800;border-radius:10px;padding:8px 16px;cursor:pointer;white-space:nowrap;flex-shrink:0">⏭ Saltar</button>
+    <div class="timer-wrap">
+      <div class="timer-circle" id="g-timer-circle">
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r="25" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4"/>
+          <circle id="g-timer-arc" cx="30" cy="30" r="25" fill="none" stroke="#6c3fc5" stroke-width="4"
+            stroke-linecap="round" stroke-dasharray="157.1" stroke-dashoffset="0"/>
+        </svg>
+        <span class="timer-num" id="g-timer-num">20</span>
+      </div>
+    </div>
+  </div>
+  <div class="prog-bar-wrap"><div class="prog-bar-fill" id="g-prog"></div></div>
+  <div class="game-body" id="game-body"></div>
+</div>
+
+<!-- PODIUM -->
+<div id="podium-screen">
+  <div class="podium-header">
+    <div>
+      <div class="podium-title">🏅 Podio tras pregunta <span id="podium-q-num">1</span></div>
+      <div class="podium-sub" id="podium-sub">Analicen la respuesta correcta</div>
+    </div>
+    <div class="analysis-banner" style="max-width:260px" id="analysis-box">
+      <div class="analysis-label">⏳ Tiempo de análisis</div>
+      <div class="analysis-timer" id="analysis-timer">15</div>
+    </div>
+  </div>
+
+  <div class="podium-wrap" id="podium-wrap"></div>
+  <div class="leaderboard" id="leaderboard"></div>
+  <button class="btn-next-q" id="btn-next-q" onclick="nextQuestion()" style="display:none">
+    Siguiente pregunta →
+  </button>
+</div>
+
+<!-- FINAL -->
+<div id="final">
+  <div class="trophy">🏆</div>
+  <div class="final-title">¡Juego terminado!</div>
+  <div class="leaderboard" id="final-leaderboard" style="max-width:700px;width:100%"></div>
+  <button class="btn-primary" onclick="resetGame()" style="width:260px;margin-top:12px">🔄 Nueva partida</button>
+</div>
+
+</div><!-- wrap -->
+
+<script>
+// ===== FIREBASE CONFIG =====
+const firebaseConfig = {
+  apiKey: "AIzaSyCyjI5t4JLmluCII4_yXHKcXJnyTNoRhDw",
+  authDomain: "bienestar2026-b4679.firebaseapp.com",
+  databaseURL: "https://bienestar2026-b4679-default-rtdb.firebaseio.com",
+  projectId: "bienestar2026-b4679",
+  storageBucket: "bienestar2026-b4679.firebasestorage.app",
+  messagingSenderId: "524713674676",
+  appId: "1:524713674676:web:b7a2690effa094522654e1"
+};
+
+// ===== QUESTIONS =====
+const ALL_QUESTIONS = [
+  {type:'match',time:35,instruction:'Relaciona cada concepción de salud con su característica principal.',
+   pairs:[{left:'Concepción clásica',right:'Se centra en la capacidad de realizar actividades cotidianas.'},
+          {left:'Concepción fisiologista',right:'Define la salud como ausencia de enfermedad.'},
+          {left:'Concepción oficial (OMS)',right:'Considera la salud como bienestar físico, mental y social.'}]},
+  {type:'match',time:35,instruction:'Relaciona el tipo de determinante con el ejemplo correspondiente.',
+   pairs:[{left:'Biológico',right:'Predisposición genética a una enfermedad.'},
+          {left:'Social',right:'Acceso a educación y empleo formal.'},
+          {left:'Ambiental',right:'Calidad del aire en una comunidad industrial.'}]},
+  {type:'match',time:35,instruction:'Relaciona la dimensión del bienestar con su manifestación práctica en la vida diaria.',
+   pairs:[{left:'Bienestar físico',right:'Realizar actividad física y mantener hábitos saludables.'},
+          {left:'Bienestar emocional',right:'Manejar adecuadamente el estrés y reconocer emociones.'},
+          {left:'Bienestar social',right:'Mantener relaciones interpersonales positivas y de apoyo.'}]},
+  {type:'match',time:45,instruction:'Relaciona la acción con el principio preventivo correspondiente.',
+   pairs:[{left:'Medición periódica',right:'Garantiza seguimiento.'},
+          {left:'Comparación con valores normales',right:'Permite detectar desviaciones.'},
+          {left:'Registro en historia clínica',right:'Facilita diagnóstico temprano.'},
+          {left:'Repetición en condiciones controladas',right:'Aumenta confiabilidad.'},
+          {left:'Interpretación integral',right:'Evita conclusiones aisladas.'}]},
+  {type:'match',time:35,instruction:'Relaciona el concepto con su implicación en salud.',
+   pairs:[{left:'Alteración celular',right:'Cambio microscópico inicial.'},
+          {left:'Daño tisular',right:'Afectación en función específica.'},
+          {left:'Disfunción orgánica',right:'Compromiso de coordinación corporal.'},
+          {left:'Falla sistémica',right:'Impacto en varios órganos.'}]},
+  {type:'match',time:35,instruction:'Relaciona el nutrimento con su función principal.',
+   pairs:[{left:'Carbohidratos',right:'Fuente energética inmediata.'},
+          {left:'Proteínas',right:'Construcción y reparación tisular.'},
+          {left:'Lípidos',right:'Reserva energética concentrada.'},
+          {left:'Vitaminas',right:'Regulación metabólica.'}]},
+  {type:'match',time:40,instruction:'Relaciona la etapa del ciclo vital con su recomendación general.',
+   pairs:[{left:'Adolescente',right:'8-10 horas de sueño aproximadas.'},
+          {left:'Adulto',right:'7-8 horas de sueño aproximadas.'},
+          {left:'Adulto mayor',right:'Actividad física adaptada a movilidad.'},
+          {left:'Niñez',right:'Estimulación motriz constante.'}]},
+  {type:'match',time:35,instruction:'Relaciona el factor con su consecuencia.',
+   pairs:[{left:'Sedentarismo prolongado',right:'Riesgo metabólico aumentado.'},
+          {left:'Ejercicio constante',right:'Mejora estado de ánimo.'},
+          {left:'Falta de sueño',right:'Fatiga y bajo rendimiento.'},
+          {left:'Higiene adecuada',right:'Prevención de infecciones.'}]},
+  {type:'match',time:35,instruction:'Relaciona el concepto con su característica.',
+   pairs:[{left:'Estilo de vida saludable',right:'Conjunto de hábitos que promueven bienestar integral.'},
+          {left:'Sedentarismo',right:'Conducta de bajo movimiento prolongado.'},
+          {left:'Actividad física',right:'Movimiento corporal con gasto energético.'},
+          {left:'Higiene del sueño',right:'Rutinas que mejoran calidad del descanso.'}]},
+  {type:'match',time:35,instruction:'Relaciona el hábito con su efecto principal.',
+   pairs:[{left:'Dormir adecuadamente',right:'Consolidación de memoria.'},
+          {left:'Lavado frecuente de manos',right:'Reducción de infecciones.'},
+          {left:'Actividad física regular',right:'Regulación del peso corporal.'},
+          {left:'Descanso reparador',right:'Recuperación tisular.'}]},
+  {type:'mc',time:25,badge:'V/F',
+   question:'¿Es verdadera o falsa esta afirmación?\n"Los determinantes sociales de la salud incluyen educación y empleo."',
+   options:['✅ Verdadero — las condiciones sociales afectan la calidad de vida.',
+            '❌ Falso — solo el ambiente natural influye en la salud.',
+            '❌ Falso — solo los genes determinan la salud.',
+            '❌ Verdadero — pero solo por decisiones individuales.'],correct:0},
+  {type:'mc',time:30,badge:'V/F',
+   question:'¿Es verdadera o falsa esta afirmación?\n"La salud es un estado dinámico que puede modificarse a lo largo del tiempo debido a factores personales, sociales y ambientales."',
+   options:['✅ Verdadero — cambia según condiciones personales y del entorno.',
+            '❌ Falso — permanece estable una vez alcanzado equilibrio físico.',
+            '❌ Verdadero — pero solo depende de la herencia genética.',
+            '❌ Falso — solo las enfermedades médicas alteran la salud.'],correct:0},
+  {type:'mc',time:25,badge:'V/F',
+   question:'¿Es verdadera o falsa esta afirmación?\n"La presión arterial puede modificarse por factores emocionales como el estrés."',
+   options:['✅ Verdadero — factores emocionales pueden alterar temporalmente sus valores.',
+            '❌ Falso — solo cambia por enfermedad cardiovascular.',
+            '❌ Falso — depende exclusivamente de la edad.',
+            '❌ Verdadero — pero siempre indica enfermedad crónica.'],correct:0},
+  {type:'mc',time:25,badge:'V/F',
+   question:'¿Es verdadera o falsa esta afirmación?\n"El sistema respiratorio puede mantener la vida sin interacción con el sistema circulatorio."',
+   options:['✅ Falso — el transporte de oxígeno requiere coordinación con el circulatorio.',
+            '❌ Verdadero — el oxígeno se distribuye sin necesidad de la sangre.',
+            '❌ Falso — el sistema nervioso reemplaza al circulatorio.',
+            '❌ Verdadero — los sistemas funcionan de manera aislada.'],correct:0},
+  {type:'mc',time:25,badge:'V/F',
+   question:'¿Es verdadera o falsa esta afirmación?\n"La alimentación consciente implica prestar atención a sensaciones físicas y emocionales durante el acto de comer."',
+   options:['✅ Verdadero — integra percepción corporal y emocional al comer.',
+            '❌ Falso — solo se enfoca en la calidad nutricional.',
+            '❌ Falso — elimina la necesidad de señales internas.',
+            '❌ Verdadero — pero se basa exclusivamente en el conteo de calorías.'],correct:0},
+  {type:'mc',time:25,badge:'V/F',
+   question:'¿Es verdadera o falsa esta afirmación?\n"Los requerimientos nutricionales permanecen constantes a lo largo del ciclo vital."',
+   options:['✅ Falso — cambian según crecimiento y envejecimiento.',
+            '❌ Verdadero — las funciones metabólicas son iguales en todas las edades.',
+            '❌ Falso — solo dependen del contexto cultural.',
+            '❌ Verdadero — las guías alimentarias son idénticas para todos.'],correct:0},
+  {type:'mc',time:25,badge:'V/F',
+   question:'¿Es verdadera o falsa esta afirmación?\n"La higiene personal contribuye tanto a la salud individual como a la comunitaria."',
+   options:['✅ Verdadero — previene infecciones y favorece interacción social saludable.',
+            '❌ Falso — la higiene solo tiene efecto estético.',
+            '❌ Verdadero — pero sustituye otras medidas preventivas.',
+            '❌ Falso — solo beneficia a quien la práctica.'],correct:0},
+  {type:'mc',time:25,badge:'V/F',
+   question:'¿Es verdadera o falsa esta afirmación?\n"Las necesidades de sueño son iguales en adolescentes y adultos mayores."',
+   options:['✅ Falso — los requerimientos varían según etapa del ciclo vital.',
+            '❌ Verdadero — el descanso responde a un patrón biológico universal.',
+            '❌ Falso — solo dependen del nivel de actividad física.',
+            '❌ Verdadero — la cantidad de sueño no influye en la salud.'],correct:0},
+  {type:'mc',time:40,badge:'Análisis',
+   question:'Una alteración en el sistema circulatorio reduce el transporte de oxígeno hacia las células.\n¿Cuál es la consecuencia coherente desde la visión integral del cuerpo humano?',
+   options:['Puede comprometer el funcionamiento celular y generar alteraciones progresivas en tejidos y órganos que dependen del aporte constante de oxígeno.',
+            'Su impacto se limita principalmente al tejido cardiaco encargado de impulsar la sangre.',
+            'Mientras se mantenga activa la ventilación pulmonar, el impacto celular será mínimo.'],correct:0},
+  {type:'mc',time:35,badge:'Análisis',
+   question:'Una persona consume una dieta variada con fibra soluble e insoluble.\n¿Cuál beneficio refleja esta elección?',
+   options:['Regula el tránsito intestinal y el control de glucosa y colesterol, favoreciendo la salud digestiva y prevención de enfermedades.',
+            'Aporta energía directa similar a los macronutrimentos energéticos.',
+            'Sustituye la necesidad de consumir vitaminas y minerales.'],correct:0},
+  {type:'mc',time:40,badge:'Análisis',
+   question:'Una estudiante elimina los carbohidratos de su dieta y presenta fatiga y bajo rendimiento académico.\n¿Cuál interpretación es adecuada desde la nutrición?',
+   options:['La eliminación de carbohidratos puede afectar el aporte energético necesario para funciones vitales y actividad diaria.',
+            'La fatiga solo se explica por deficiencia de micronutrimentos; los carbohidratos no producen energía celular.',
+            'El bajo rendimiento se relaciona exclusivamente con factores emocionales.'],correct:0},
+  {type:'mc',time:40,badge:'Análisis',
+   question:'Una persona come frente a la televisión y termina todo sin notar cuándo se siente satisfecha.\n¿Cuál es la interpretación desde la alimentación consciente?',
+   options:['Los distractores externos interfieren con la percepción de señales de hambre y saciedad, dificultando la regulación consciente de la ingesta.',
+            'La saciedad depende principalmente del tipo y cantidad de alimentos; el entorno tiene efecto secundario.',
+            'Terminar todo responde a hábitos culturales con mayor influencia que la atención durante la comida.'],correct:0},
+];
+
+// ===== STATE =====
+let db, roomRef, roomCode;
+let questions = [];
+let currentQIdx = 0;
+let timerInterval = null;
+let analysisInterval = null;
+let timeLeft = 0, totalTime = 0;
+let playerScores = {};
+let responses = {};
+let gamePhase = 'waiting'; // waiting | question | analysis | podium | done
+
+const AVATARS = ['🦊','🐱','🐸','🦁','🐧','🦄','🐺','🦋','🐙','🌟','🎯','🚀','🌈','🎸','🍕'];
+const COLORS  = ['#6c3fc5','#e040a0','#00d4ff','#ffe14d','#00e676','#ff9800','#ff5252','#00bcd4','#9c27b0','#4caf50'];
+
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function createRoom(){
+  const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+  const teacher = document.getElementById('teacher-name').value.trim() || 'Maestra';
+  if(!code){alert('Escribe un código de sala');return}
+
+  // Try to initialize Firebase
+  try {
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    roomCode = code;
+    roomRef = db.ref('rooms/'+code);
+
+    // Clear any existing room data
+    roomRef.set({
+      status:'lobby',
+      teacher:teacher,
+      currentQ:-1,
+      phase:'waiting',
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    }).then(()=>{
+      setupLobby(code);
+    }).catch(err=>{
+      showOfflineMode(code);
+    });
+  } catch(e) {
+    showOfflineMode(code);
+  }
+}
+
+function showOfflineMode(code){
+  // Firebase not configured - use demo mode
+  roomCode = code;
+  setupLobby(code);
+  // Add demo players after delay
+  setTimeout(()=>{
+    addDemoPlayer('María G.', 0);
+    setTimeout(()=>addDemoPlayer('Carlos R.', 1), 800);
+    setTimeout(()=>addDemoPlayer('Sofía M.', 2), 1600);
+    setTimeout(()=>addDemoPlayer('Luis P.', 3), 2000);
+  }, 1000);
+}
+
+function addDemoPlayer(name, avatarIdx){
+  const pid = 'demo_'+name.replace(/\s/g,'');
+  playerScores[pid] = {name, avatar: AVATARS[avatarIdx], color: COLORS[avatarIdx], score:0, correct:0};
+  renderPlayerChip(pid, playerScores[pid]);
+  updatePlayerCount();
+}
+
+function setupLobby(code){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('lobby').style.display='flex';
+  document.getElementById('display-code').textContent=code;
+
+  // Generate QR
+  const studentUrl = 'https://yatzi-sv.github.io/repaso-bi/alumno.html?room='+code;
+  try{
+    new QRCode(document.getElementById('qr-code'),{text:studentUrl,width:128,height:128,colorDark:'#1a1a4e',colorLight:'#ffffff'});
+  }catch(e){
+    document.getElementById('qr-code').innerHTML='<p style="color:#1a1a4e;font-size:0.7rem;padding:8px">'+studentUrl+'</p>';
+  }
+
+  // Listen for players if Firebase available
+  if(db){
+    roomRef.child('players').on('value', snap=>{
+      const data = snap.val()||{};
+      playerScores={};
+      document.getElementById('players-grid').innerHTML='';
+      Object.entries(data).forEach(([pid,p])=>{
+        playerScores[pid]={name:p.name,avatar:p.avatar||'🎯',color:p.color||'#6c3fc5',score:0,correct:0};
+        renderPlayerChip(pid,playerScores[pid]);
+      });
+      updatePlayerCount();
+    });
+  }
+}
+
+function renderPlayerChip(pid, p){
+  const grid = document.getElementById('players-grid');
+  let chip = document.getElementById('chip-'+pid);
+  if(!chip){
+    chip = document.createElement('div');
+    chip.className='player-chip';
+    chip.id='chip-'+pid;
+    chip.innerHTML=`<div class="avatar" style="background:${p.color}20;color:${p.color}">${p.avatar}</div><span>${p.name}</span>`;
+    grid.appendChild(chip);
+  }
+}
+
+function updatePlayerCount(){
+  const n = Object.keys(playerScores).length;
+  document.getElementById('player-count').textContent=n;
+  const btn = document.getElementById('btn-start-game');
+  btn.disabled = n===0;
+  document.getElementById('start-hint').textContent = n>0 ? `${n} alumno${n>1?'s':''} conectado${n>1?'s':''} — ¡listo!` : 'Conecta al menos 1 alumno para comenzar';
+}
+
+function startGame(){
+  questions = shuffle(ALL_QUESTIONS).map(q=>{
+    if(q.type==='mc'&&q.options){
+      const correct=q.options[q.correct];
+      const shuffled=shuffle(q.options);
+      return{...q,options:shuffled,correct:shuffled.indexOf(correct)};
+    }
+    return{...q};
+  });
+  currentQIdx=0;
+  if(db) roomRef.child('status').set('playing');
+  document.getElementById('lobby').style.display='none';
+  document.getElementById('game').style.display='flex';
+  renderQuestion();
+}
+
+function renderQuestion(){
+  responses={};
+  const q=questions[currentQIdx];
+  const total=questions.length;
+
+  document.getElementById('g-q-num').textContent=`Pregunta ${currentQIdx+1} / ${total}`;
+  document.getElementById('g-prog').style.width=`${(currentQIdx/total)*100}%`;
+  document.getElementById('resp-count').textContent='0';
+  document.getElementById('total-players').textContent=Object.keys(playerScores).length;
+
+  const badge=document.getElementById('g-badge');
+  if(q.type==='match'){badge.textContent='Relacionar';badge.className='badge badge-match'}
+  else if(q.badge==='V/F'){badge.textContent='V / F';badge.className='badge badge-vf'}
+  else{badge.textContent=q.badge||'Opción múltiple';badge.className='badge badge-mc'}
+
+  const body=document.getElementById('game-body');
+  body.innerHTML='';
+
+  if(q.type==='mc') renderMCTeacher(q,body);
+  else renderMatchTeacher(q,body);
+
+  // Listen for responses
+  if(db){
+    const qRef=roomRef.child('responses/q'+currentQIdx);
+    qRef.set(null);
+    qRef.on('value',snap=>{
+      responses=snap.val()||{};
+      const cnt=Object.keys(responses).length;
+      document.getElementById('resp-count').textContent=cnt;
+      updateOptVotes(q,responses);
+    });
+    roomRef.child('currentQ').set(currentQIdx);
+    roomRef.child('questionData').set(q);
+    roomRef.child('phase').set('question');
+  }
+
+  startTimer(q.time, ()=>endQuestion());
+}
+
+function renderMCTeacher(q,body){
+  const qText=document.createElement('div');
+  qText.className='q-text-big';
+  qText.innerHTML=q.question.replace(/\n/g,'<br>');
+  body.appendChild(qText);
+
+  const grid=document.createElement('div');
+  grid.className=`opts-display${q.options.length<=3?' single-col':''}`;
+  const letters=['A','B','C','D'];
+  const cls=['os-A','os-B','os-C','os-D'];
+
+  q.options.forEach((opt,i)=>{
+    const el=document.createElement('div');
+    el.className=`opt-show ${cls[i]}`;
+    el.id=`opt-${i}`;
+    el.innerHTML=`<div class="bar-fill" id="bar-${i}" style="width:0%"></div>
+      <span class="opt-letter">${letters[i]}</span>
+      <span>${opt}</span>
+      <span class="opt-votes" id="votes-${i}">0</span>`;
+    grid.appendChild(el);
+  });
+  body.appendChild(grid);
+}
+
+function updateOptVotes(q,resps){
+  if(q.type!=='mc') return;
+  const counts=Array(q.options.length).fill(0);
+  Object.values(resps).forEach(r=>{ if(r.answer!==undefined) counts[r.answer]=(counts[r.answer]||0)+1; });
+  const total=Math.max(1,Object.keys(resps).length);
+  counts.forEach((c,i)=>{
+    const v=document.getElementById('votes-'+i);
+    const b=document.getElementById('bar-'+i);
+    if(v) v.textContent=c;
+    if(b) b.style.width=(c/total*100)+'%';
+  });
+}
+
+function renderMatchTeacher(q,body){
+  const qText=document.createElement('div');
+  qText.className='q-text-big';
+  qText.textContent=q.instruction;
+  body.appendChild(qText);
+
+  const cont=document.createElement('div');
+  cont.className='match-display';
+  const lCol=document.createElement('div');lCol.className='match-col-d';
+  const rCol=document.createElement('div');rCol.className='match-col-d';
+  const lt=document.createElement('div');lt.className='match-col-title-d';lt.textContent='Concepto';
+  const rt=document.createElement('div');rt.className='match-col-title-d';rt.textContent='Definición';
+  lCol.appendChild(lt);rCol.appendChild(rt);
+
+  const shuffledPairs=[...q.pairs];shuffle(shuffledPairs);
+  shuffledPairs.forEach(p=>{
+    const l=document.createElement('div');l.className='match-item-d mid-left';l.textContent=p.left;
+    const r=document.createElement('div');r.className='match-item-d mid-right';r.textContent=p.right;
+    lCol.appendChild(l);rCol.appendChild(r);
+  });
+  cont.appendChild(lCol);cont.appendChild(rCol);
+  body.appendChild(cont);
+}
+
+function startTimer(seconds, onEnd){
+  timeLeft=seconds; totalTime=seconds;
+  clearInterval(timerInterval);
+  const circle=document.getElementById('g-timer-circle');
+  const numEl=document.getElementById('g-timer-num');
+  const arc=document.getElementById('g-timer-arc');
+  const circ=157.1;
+  circle.classList.remove('urgent');
+  arc.style.stroke='#6c3fc5';
+
+  function tick(){
+    numEl.textContent=timeLeft;
+    arc.style.strokeDashoffset=circ*(1-timeLeft/totalTime);
+    if(timeLeft<=5){circle.classList.add('urgent');arc.style.stroke='#ff5252'}
+    else if(timeLeft<=Math.ceil(totalTime*0.3)) arc.style.stroke='#ff9800';
+    if(timeLeft<=0){clearInterval(timerInterval);onEnd();return}
+    timeLeft--;
+  }
+  tick();
+  timerInterval=setInterval(tick,1000);
+}
+
+function endQuestion(){
+  clearInterval(timerInterval);
+  const q=questions[currentQIdx];
+
+  // Calculate scores for this question
+  const respsToProcess = db ? responses : simulateResponses(q);
+  Object.entries(respsToProcess).forEach(([pid,r])=>{
+    if(!playerScores[pid]) return;
+    if(r.correct){
+      const bonus=Math.max(0,Math.round((r.timeLeft||0)/q.time*500));
+      playerScores[pid].score+=(500+bonus);
+      playerScores[pid].correct=(playerScores[pid].correct||0)+1;
+    }
+  });
+
+  if(db) roomRef.child('phase').set('analysis');
+
+  // Show correct answers on screen
+  showCorrectAnswers(q);
+
+  // Start analysis phase (15 sec)
+  startAnalysisCountdown(15, ()=>{
+    showPodium();
+  });
+}
+
+function simulateResponses(q){
+  // Demo mode: simulate random student answers
+  const sim={};
+  Object.entries(playerScores).forEach(([pid,p])=>{
+    const correct = Math.random()>0.4;
+    sim[pid]={correct, timeLeft: Math.floor(Math.random()*q.time)};
+  });
+  return sim;
+}
+
+function showCorrectAnswers(q){
+  if(q.type!=='mc') return;
+  const opts=document.querySelectorAll('.opt-show');
+  opts.forEach((el,i)=>{
+    if(i===q.correct) el.classList.add('correct-show');
+  });
+}
+
+function startAnalysisCountdown(seconds, onEnd){
+  let t=seconds;
+  document.getElementById('g-timer-num').textContent=t;
+  document.getElementById('g-timer-circle').classList.remove('urgent');
+  document.getElementById('g-timer-arc').style.stroke='#ffe14d';
+  document.getElementById('g-timer-arc').style.strokeDashoffset=0;
+
+  // Add analysis banner to game body
+  const body=document.getElementById('game-body');
+  const banner=document.createElement('div');
+  banner.className='analysis-banner';
+  banner.id='in-game-analysis';
+  banner.innerHTML=`<div class="analysis-label">🔍 Analicen la respuesta correcta</div>
+    <div class="analysis-timer" id="in-game-timer">${t}</div>`;
+  body.appendChild(banner);
+
+  const circ=157.1;
+  analysisInterval=setInterval(()=>{
+    t--;
+    const el=document.getElementById('in-game-timer');
+    const numEl=document.getElementById('g-timer-num');
+    const arc=document.getElementById('g-timer-arc');
+    if(el) el.textContent=t;
+    if(numEl) numEl.textContent=t;
+    if(arc) arc.style.strokeDashoffset=circ*(1-t/seconds);
+    if(t<=5&&numEl) document.getElementById('g-timer-circle').classList.add('urgent');
+    if(t<=0){clearInterval(analysisInterval);onEnd();}
+  },1000);
+}
+
+function showPodium(){
+  document.getElementById('game').style.display='none';
+  document.getElementById('podium-screen').style.display='flex';
+  document.getElementById('podium-q-num').textContent=currentQIdx+1;
+
+  const isLast=currentQIdx>=questions.length-1;
+  document.getElementById('podium-sub').textContent=isLast?'🏁 ¡Última pregunta! Resultado final':'¡Vean cómo van sus compañeros!';
+
+  const sorted=Object.entries(playerScores).sort((a,b)=>b[1].score-a[1].score);
+
+  // Podium top 3
+  const podiumWrap=document.getElementById('podium-wrap');
+  podiumWrap.innerHTML='';
+  const order=[1,0,2]; // 2nd, 1st, 3rd
+  order.forEach(rank=>{
+    const entry=sorted[rank];
+    if(!entry) return;
+    const [pid,p]=entry;
+    const place=document.createElement('div');
+    place.className=`podium-place p${rank+1}`;
+    const medals=['🥇','🥈','🥉'];
+    place.innerHTML=`
+      <div class="podium-avatar" style="font-size:2rem">${p.avatar}</div>
+      <div class="podium-name" style="color:${p.color}">${p.name}</div>
+      <div class="podium-score">${p.score.toLocaleString()} pts</div>
+      <div class="podium-block">${medals[rank]||''}</div>`;
+    podiumWrap.appendChild(place);
+  });
+
+  // Full leaderboard
+  const lb=document.getElementById('leaderboard');
+  lb.innerHTML='';
+  sorted.forEach(([pid,p],i)=>{
+    const row=document.createElement('div');
+    row.className='lb-row';
+    row.innerHTML=`<div class="lb-rank">${i+1}</div>
+      <div class="lb-avatar">${p.avatar}</div>
+      <div class="lb-name" style="color:${p.color}">${p.name}</div>
+      <div class="lb-correct" style="margin-right:8px">✅ ${p.correct||0}</div>
+      <div class="lb-score">${p.score.toLocaleString()}</div>`;
+    lb.appendChild(row);
+  });
+
+  // Show next button
+  const btnNext=document.getElementById('btn-next-q');
+  btnNext.style.display='block';
+  btnNext.textContent=isLast?'Ver resultado final 🏆':'Siguiente pregunta →';
+}
+
+function nextQuestion(){
+  currentQIdx++;
+  if(currentQIdx>=questions.length){
+    showFinal();return;
+  }
+  document.getElementById('podium-screen').style.display='none';
+  document.getElementById('game').style.display='flex';
+  renderQuestion();
+}
+
+function showFinal(){
+  document.getElementById('podium-screen').style.display='none';
+  document.getElementById('final').style.display='flex';
+  if(db) roomRef.child('status').set('done');
+
+  const sorted=Object.entries(playerScores).sort((a,b)=>b[1].score-a[1].score);
+  const lb=document.getElementById('final-leaderboard');
+  lb.innerHTML='';
+  const medals=['🥇','🥈','🥉'];
+  sorted.forEach(([pid,p],i)=>{
+    const row=document.createElement('div');
+    row.className='lb-row';
+    row.style.border=i<3?`1px solid ${['gold','#c0c0c0','#cd7f32'][i]}`:'';
+    row.innerHTML=`<div class="lb-rank">${medals[i]||i+1}</div>
+      <div class="lb-avatar">${p.avatar}</div>
+      <div class="lb-name" style="color:${p.color}">${p.name}</div>
+      <div class="lb-correct" style="margin-right:8px">✅ ${p.correct||0}/${questions.length}</div>
+      <div class="lb-score">${p.score.toLocaleString()} pts</div>`;
+    lb.appendChild(row);
+  });
+  launchConfetti();
+}
+
+function resetGame(){location.reload()}
+
+function launchConfetti(){
+  const colors=['#6c3fc5','#e040a0','#00d4ff','#ffe14d','#00e676','#ff9800'];
+  for(let i=0;i<80;i++){
+    const el=document.createElement('div');el.className='confetti-piece';
+    el.style.left=Math.random()*100+'vw';
+    el.style.background=colors[Math.floor(Math.random()*colors.length)];
+    el.style.animationDuration=(2+Math.random()*2)+'s';
+    el.style.animationDelay=Math.random()*1.5+'s';
+    document.body.appendChild(el);
+    el.addEventListener('animationend',()=>el.remove());
+  }
+}
+
+// Auto-generate room code
+document.getElementById('room-code-input').value='BIO'+Math.floor(Math.random()*900+100);
+
+function skipQuestion(){
+  if(!confirm('¿Saltar esta pregunta y pasar al podio?')) return;
+  clearInterval(timerInterval);
+  clearInterval(analysisInterval);
+  endQuestion();
+}
+</script>
+</body>
+</html>
